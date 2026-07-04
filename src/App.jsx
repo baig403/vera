@@ -6,6 +6,8 @@ import ScrollTrigger from 'gsap/ScrollTrigger'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import CustomCursor from './components/CustomCursor'
+import AuthModal from './components/AuthModal'
+import OnboardingModal from './components/OnboardingModal'
 import Home from './pages/Home'
 import Results from './pages/Results'
 import Watchlist from './pages/Watchlist'
@@ -106,6 +108,8 @@ export default function App() {
       <div className="orb orb-gold" aria-hidden />
       <CustomCursor />
       <ScrollToTop />
+      <OnboardingModal />
+      <AuthModal />
       <Navbar />
       <main className="flex-1">
         <PageTransition routeKey={location.pathname}>

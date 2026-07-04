@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
 import VerdictBadge from '../components/VerdictBadge'
+import SignInRequired from '../components/SignInRequired'
+import LoadingSpinner from '../components/LoadingSpinner'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../utils/supabase'
 import { getScreeningData, searchSymbol } from '../utils/api'
 import { screenStock, computePurificationRatio } from '../utils/screening'
 
@@ -60,7 +64,9 @@ function TickerAutocomplete({ value, onChange }) {
 }
 
 export default function Portfolio() {
-  const [holdings, setHoldings] = useState([{ ticker: '', shares: '' }])
+  const { user, loading: authLoading } = useAuth()
+  const [holdings, setHoldings] = useState([{ id: null, ticker: '', shares: '' }])
+  const [holdingsLoading, setHoldingsLoading] = useState(true)
   const [results, setResults] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -70,16 +76,48 @@ export default function Portfolio() {
   const [whatIfResult, setWhatIfResult] = useState(null)
   const [whatIfLoading, setWhatIfLoading] = useState(false)
 
+  useEffect(() => {
+    if (!user) {
+      setHoldings([{ id: null, ticker: '', shares: '' }])
+      setHoldingsLoading(false)
+      return undefined
+    }
+
+    let cancelled = false
+    setHoldingsLoading(true)
+    supabase
+      .from('portfolio_holdings')
+      .select('*')
+      .eq('user_id', user.id)
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (!error && data && data.length > 0) {
+          setHoldings(data.map((row) => ({ id: row.id, ticker: row.ticker, shares: String(row.shares) })))
+        } else {
+          setHoldings([{ id: null, ticker: '', shares: '' }])
+        }
+        setHoldingsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
   function updateHolding(index, field, value) {
     setHoldings((prev) => prev.map((h, i) => (i === index ? { ...h, [field]: value } : h)))
   }
 
   function addRow() {
-    setHoldings((prev) => [...prev, { ticker: '', shares: '' }])
+    setHoldings((prev) => [...prev, { id: null, ticker: '', shares: '' }])
   }
 
-  function removeRow(index) {
+  async function removeRow(index) {
+    const holding = holdings[index]
     setHoldings((prev) => prev.filter((_, i) => i !== index))
+    if (holding?.id) {
+      await supabase.from('portfolio_holdings').delete().eq('id', holding.id)
+    }
   }
 
   async function analyze() {
@@ -88,6 +126,26 @@ export default function Portfolio() {
     setAnalyzing(true)
     setProgress(0)
     setResults(null)
+
+    if (user) {
+      const withIds = await Promise.all(
+        holdings.map(async (h) => {
+          if (h.id || !h.ticker.trim() || !(Number(h.shares) > 0)) return h
+          try {
+            const { data, error } = await supabase
+              .from('portfolio_holdings')
+              .insert({ user_id: user.id, ticker: h.ticker.trim().toUpperCase(), shares: Number(h.shares) })
+              .select()
+              .single()
+            if (error || !data) return h
+            return { ...h, id: data.id }
+          } catch {
+            return h
+          }
+        }),
+      )
+      setHoldings(withIds)
+    }
 
     let completed = 0
     const settled = await Promise.all(
@@ -176,6 +234,18 @@ export default function Portfolio() {
         borderWidth: 0,
       },
     ],
+  }
+
+  if (authLoading || holdingsLoading) {
+    return (
+      <div className="mx-auto max-w-6xl px-6 py-24">
+        <LoadingSpinner label="Loading your portfolio..." />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <SignInRequired feature="Portfolio Simulator" />
   }
 
   return (

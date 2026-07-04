@@ -1,13 +1,59 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import StockCard from '../components/StockCard'
-import * as cache from '../utils/cache'
+import SignInRequired from '../components/SignInRequired'
+import LoadingSpinner from '../components/LoadingSpinner'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../utils/supabase'
 
 export default function Watchlist() {
-  const [items, setItems] = useState(() => cache.getWatchlist())
+  const { user, loading: authLoading } = useAuth()
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  function handleRemove(ticker) {
-    setItems(cache.removeFromWatchlist(ticker))
+  useEffect(() => {
+    if (!user) {
+      setItems([])
+      setLoading(false)
+      return undefined
+    }
+
+    let cancelled = false
+    setLoading(true)
+    supabase
+      .from('watchlist')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('screened_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return
+        setItems(!error && data ? data : [])
+        setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  async function handleRemove(ticker) {
+    const item = items.find((i) => i.ticker === ticker)
+    setItems((prev) => prev.filter((i) => i.ticker !== ticker))
+    if (item) {
+      await supabase.from('watchlist').delete().eq('id', item.id)
+    }
+  }
+
+  if (authLoading || loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-6 py-24">
+        <LoadingSpinner label="Loading your watchlist..." />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <SignInRequired feature="Watchlist" />
   }
 
   if (items.length === 0) {
@@ -35,11 +81,11 @@ export default function Watchlist() {
       <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {items.map((item) => (
           <StockCard
-            key={item.ticker}
+            key={item.id}
             ticker={item.ticker}
-            name={item.name}
+            name={item.company_name}
             verdict={item.verdict}
-            dateScreened={item.dateScreened}
+            dateScreened={item.screened_at}
             onRemove={handleRemove}
           />
         ))}

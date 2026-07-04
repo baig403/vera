@@ -15,7 +15,8 @@ import LoadingSpinner from '../components/LoadingSpinner'
 import { useScreening } from '../hooks/useScreening'
 import { getHistoricalPrices } from '../utils/api'
 import { BUSINESS_ACTIVITY_CATEGORIES } from '../utils/screening'
-import * as cache from '../utils/cache'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../utils/supabase'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -57,12 +58,13 @@ function ResultsSkeleton() {
 
 export default function Results() {
   const { ticker } = useParams()
+  const { user, openAuthModal } = useAuth()
   const { result, loading, error, fromCache, cacheAgeHours, refresh } = useScreening(ticker)
 
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(
     () => sessionStorage.getItem('vera_disclaimer_dismissed') === '1',
   )
-  const [saved, setSaved] = useState(() => cache.isInWatchlist(ticker))
+  const [saved, setSaved] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
 
   const [history, setHistory] = useState([]);
@@ -86,8 +88,24 @@ export default function Results() {
   }, [ticker])
 
   useEffect(() => {
-    setSaved(cache.isInWatchlist(ticker))
-  }, [ticker])
+    if (!user) {
+      setSaved(false)
+      return undefined
+    }
+    let cancelled = false
+    supabase
+      .from('watchlist')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('ticker', ticker.toUpperCase())
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setSaved(!!data)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [ticker, user])
 
   const chartData = useMemo(() => {
     const n = RANGES[range] || history.length
@@ -114,14 +132,19 @@ export default function Results() {
     setDisclaimerDismissed(true)
   }
 
-  function handleSaveToWatchlist() {
+  async function handleSaveToWatchlist() {
     if (!result) return
-    cache.addToWatchlist({
+    if (!user) {
+      openAuthModal('signup')
+      return
+    }
+    const { error: saveError } = await supabase.from('watchlist').insert({
+      user_id: user.id,
       ticker: ticker.toUpperCase(),
-      name: result.profile?.companyName || ticker,
+      company_name: result.profile?.companyName || ticker,
       verdict: result.verdict,
     })
-    setSaved(true)
+    if (!saveError) setSaved(true)
   }
 
   function handleShare() {
