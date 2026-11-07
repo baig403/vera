@@ -21,7 +21,7 @@ import { supabase } from '../utils/supabase'
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
 const RANGES = { '1D': 2, '1W': 5, '1M': 22, '6M': 126, '1Y': 252 }
-const VERDICT_HEX = { PASS: '#10B981', FAIL: '#EF4444', DOUBTFUL: '#F59E0B' }
+const VERDICT_HEX = { PASS: '#10B981', FAIL: '#EF4444', DOUBTFUL: '#F59E0B', UNKNOWN: '#9CA3AF' }
 
 function formatMarketCap(value) {
   if (!value) return 'N/A'
@@ -313,7 +313,7 @@ export default function Results() {
                     className="text-sm font-semibold"
                     style={{ color: VERDICT_HEX[r.status] || VERDICT_HEX.DOUBTFUL }}
                   >
-                    {r.value.toFixed(1)}% ({r.comparison === 'lessThan' ? '<' : '>'} {r.threshold}%) — {r.status}
+                    {r.value === null || r.value === undefined ? 'n/a' : `${r.value.toFixed(1)}%`} ({r.comparison === 'lessThan' ? '<' : '>'} {r.threshold}%) — {r.status}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{r.formula}</p>
@@ -343,7 +343,7 @@ export default function Results() {
         <div className="glass-card mt-8 p-6 border-[var(--color-gold)]/20">
           <p className="font-semibold text-lg text-[var(--color-gold)]">Purification Ratio</p>
           <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            Approximately <span className="text-[var(--color-gold)] font-semibold">{purificationRatio.toFixed(2)}%</span> of
+            Approximately <span className="text-[var(--color-gold)] font-semibold">{(purificationRatio ?? 0).toFixed(2)}%</span> of
             dividends received from {ticker.toUpperCase()} should be purified (donated) to offset non-compliant
             interest income.
           </p>

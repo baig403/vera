@@ -12,7 +12,7 @@ import { screenStock, computePurificationRatio } from '../utils/screening'
 ChartJS.register(ArcElement, Tooltip, Legend)
 
 const SUGGESTION_POOL = ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'ADBE']
-const VERDICT_HEX = { PASS: '#10B981', FAIL: '#EF4444', DOUBTFUL: '#F59E0B' }
+const VERDICT_HEX = { PASS: '#10B981', FAIL: '#EF4444', DOUBTFUL: '#F59E0B', UNKNOWN: '#9CA3AF' }
 
 function TickerAutocomplete({ value, onChange }) {
   const [suggestions, setSuggestions] = useState([])
@@ -179,16 +179,16 @@ export default function Portfolio() {
   const summary = useMemo(() => {
     if (!results) return null
     const totalValue = results.reduce((sum, r) => sum + (r.value || 0), 0)
-    const byVerdict = { PASS: 0, FAIL: 0, DOUBTFUL: 0 }
+    const byVerdict = { PASS: 0, FAIL: 0, DOUBTFUL: 0, UNKNOWN: 0 }
     results.forEach((r) => {
-      if (r.verdict) byVerdict[r.verdict] += r.value || 0
+      if (r.verdict && r.verdict in byVerdict) byVerdict[r.verdict] += r.value || 0
     })
     const compliancePct = totalValue ? (byVerdict.PASS / totalValue) * 100 : 0
     return { totalValue, byVerdict, compliancePct }
   }, [results])
 
   const nonCompliant = useMemo(
-    () => (results || []).filter((r) => r.verdict === 'FAIL' || r.verdict === 'DOUBTFUL'),
+    () => (results || []).filter((r) => r.verdict === 'FAIL' || r.verdict === 'DOUBTFUL' || r.verdict === 'UNKNOWN'),
     [results],
   )
 
@@ -208,7 +208,7 @@ export default function Portfolio() {
       const newValue = replaced ? replaced.value : 0
 
       const newByVerdict = { ...summary.byVerdict }
-      if (replaced?.verdict) newByVerdict[replaced.verdict] -= replaced.value
+      if (replaced?.verdict && replaced.verdict in newByVerdict) newByVerdict[replaced.verdict] -= replaced.value
       newByVerdict[verdict.verdict] = (newByVerdict[verdict.verdict] || 0) + newValue
       const newCompliance = summary.totalValue ? (newByVerdict.PASS / summary.totalValue) * 100 : 0
 

@@ -1,6 +1,6 @@
 import * as cache from './cache'
 
-const API_KEY = 'm1q5g6rCOQxzGG0TBglvwP3mu4L10gNf'
+const API_KEY = import.meta.env.VITE_FMP_API_KEY
 const BASE_URL = 'https://financialmodelingprep.com/stable'
 const THROTTLE_MS = 1500
 
@@ -15,6 +15,23 @@ function throttledFetch(url) {
     cache.trackApiCall()
     console.log('[FMP request]', url)
     const res = await fetch(url)
+    if (res.ok) {
+      // FMP answers 200 with a plain-text body (e.g. "Premium Query") for
+      // symbols or endpoints outside the current plan. Parsing that as JSON
+      // throws an unhelpful SyntaxError, so detect it explicitly.
+      const text = await res.text()
+      try {
+        return JSON.parse(text)
+      } catch {
+        const snippet = text.slice(0, 120)
+        if (/premium|subscription|upgrade|exclusive endpoint/i.test(snippet)) {
+          throw new Error(
+            `This ticker needs a paid Financial Modeling Prep plan (API said: "${snippet.trim()}").`,
+          )
+        }
+        throw new Error(`FMP returned an unexpected response: "${snippet.trim()}"`)
+      }
+    }
     if (!res.ok) {
       if (res.status === 402 || res.status === 429) {
         let detail = ''

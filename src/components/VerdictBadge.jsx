@@ -17,10 +17,16 @@ const VERDICT_CONFIG = {
     bg: 'rgba(245, 158, 11, 0.12)',
     border: 'rgba(245, 158, 11, 0.4)',
   },
+  UNKNOWN: {
+    label: 'Insufficient Data',
+    color: '#9CA3AF',
+    bg: 'rgba(156, 163, 175, 0.12)',
+    border: 'rgba(156, 163, 175, 0.4)',
+  },
 }
 
 export default function VerdictBadge({ verdict, size = 'md', glow = false }) {
-  const config = VERDICT_CONFIG[verdict] || VERDICT_CONFIG.DOUBTFUL
+  const config = VERDICT_CONFIG[verdict] || VERDICT_CONFIG.UNKNOWN
   const sizeClasses =
     size === 'lg' ? 'text-lg px-6 py-3 gap-2.5' : size === 'sm' ? 'text-xs px-2.5 py-1 gap-1.5' : 'text-sm px-4 py-1.5 gap-2'
 

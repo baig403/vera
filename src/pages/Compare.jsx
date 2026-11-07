@@ -171,7 +171,7 @@ export default function Compare() {
                                 ratio.status === 'PASS' ? '#10B981' : ratio.status === 'FAIL' ? '#EF4444' : '#F59E0B',
                             }}
                           >
-                            {ratio.value.toFixed(1)}%
+                            {ratio.value === null || ratio.value === undefined ? 'n/a' : `${ratio.value.toFixed(1)}%`}
                           </span>
                         ) : (
                           '—'
