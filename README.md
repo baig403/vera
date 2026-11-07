@@ -86,3 +86,7 @@ An FMP key is available free at [financialmodelingprep.com](https://site.financi
 ## Author
 
 Abdullah Baig — Sustainability and Financial Management, University of Waterloo
+
+## License
+
+MIT — see [LICENSE](LICENSE).
